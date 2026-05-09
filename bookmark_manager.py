@@ -86,7 +86,11 @@ class BookmarkManager:
         return False
 
     def get_bookmarks_for_file(self, file_path: str) -> List[Bookmark]:
-        return [b for b in self.bookmarks if b.file_path == file_path]
+        try:
+            target_path = Path(file_path).resolve()
+            return [b for b in self.bookmarks if Path(b.file_path).resolve() == target_path]
+        except Exception:
+            return [b for b in self.bookmarks if b.file_path == file_path]
 
     def get_bookmarks_by_folder(self, folder: str) -> List[Bookmark]:
         return [b for b in self.bookmarks if b.folder == folder]

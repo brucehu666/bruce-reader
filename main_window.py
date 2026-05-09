@@ -494,7 +494,11 @@ class MainWindow(QMainWindow):
         
         file_path = str(self.document_reader.file_path)
         if text:
-            bookmarks = [b for b in self.bookmark_manager.search_bookmarks(text) if b.file_path == file_path]
+            try:
+                target_path = Path(file_path).resolve()
+                bookmarks = [b for b in self.bookmark_manager.search_bookmarks(text) if Path(b.file_path).resolve() == target_path]
+            except Exception:
+                bookmarks = [b for b in self.bookmark_manager.search_bookmarks(text) if b.file_path == file_path]
         else:
             bookmarks = self.bookmark_manager.get_bookmarks_for_file(file_path)
         
