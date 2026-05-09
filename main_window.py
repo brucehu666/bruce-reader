@@ -281,7 +281,7 @@ class MainWindow(QMainWindow):
     
     def _open_file(self):
         file_path, _ = QFileDialog.getOpenFileName(
-            self, "打开文件", "", "文本文件 (*.txt);;所有文件 (*.*)"
+            self, "打开文件", "", "文本文件 (*.txt);;EPUB文件 (*.epub);;所有文件 (*.*)"
         )
         if file_path:
             self._load_file(file_path)

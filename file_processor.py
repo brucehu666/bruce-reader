@@ -9,6 +9,12 @@ from config import (
     RECENT_FILES_FILE, CACHE_DIR
 )
 
+try:
+    from epub_processor import EPUBProcessor
+    EPUB_SUPPORTED = True
+except ImportError:
+    EPUB_SUPPORTED = False
+
 
 class FileProcessor:
     def __init__(self):
@@ -18,6 +24,8 @@ class FileProcessor:
         self.total_chunks: int = 0
         self.cache: dict = {}
         self.recent_files: List[dict] = self._load_recent_files()
+        self.epub_processor = EPUBProcessor() if EPUB_SUPPORTED else None
+        self.is_epub = False
 
     def detect_encoding(self, file_path: Path) -> str:
         try:
@@ -45,6 +53,12 @@ class FileProcessor:
             return "文件不存在", False
         
         self.current_file = path
+        self.is_epub = False
+        
+        # 检查是否为EPUB文件
+        if path.suffix.lower() == '.epub' and self.epub_processor:
+            return self._open_epub_file(path)
+        
         self.file_size = path.stat().st_size
         self.current_encoding = self.detect_encoding(path)
         
@@ -56,6 +70,32 @@ class FileProcessor:
         else:
             self.total_chunks = (self.file_size + CHUNK_SIZE - 1) // CHUNK_SIZE
             return self._load_chunk(0), True
+    
+    def _open_epub_file(self, path: Path) -> Tuple[str, bool]:
+        """
+        处理EPUB文件
+        """
+        self.is_epub = True
+        
+        try:
+            content = self.epub_processor.extract_text_from_epub(str(path))
+            if not content:
+                return "无法从EPUB文件中提取内容", False
+            
+            self.file_size = len(content.encode('utf-8'))
+            self.current_encoding = 'utf-8'
+            self._add_to_recent_files(path)
+            
+            if self.file_size <= MAX_SINGLE_LOAD:
+                return content, True
+            else:
+                self.total_chunks = (self.file_size + CHUNK_SIZE - 1) // CHUNK_SIZE
+                # 将EPUB内容存入缓存以便分块加载
+                self.cache['epub_content'] = content
+                return content[:CHUNK_SIZE], True
+                
+        except Exception as e:
+            return f"读取EPUB文件失败: {str(e)}", False
 
     def _load_entire_file(self) -> str:
         try:
@@ -67,6 +107,12 @@ class FileProcessor:
     def _load_chunk(self, chunk_index: int) -> str:
         if chunk_index < 0 or chunk_index >= self.total_chunks:
             return ""
+        
+        # EPUB文件从缓存中读取
+        if self.is_epub and 'epub_content' in self.cache:
+            content = self.cache['epub_content']
+            start_pos = chunk_index * CHUNK_SIZE
+            return content[start_pos:start_pos + CHUNK_SIZE]
         
         cache_key = self._get_cache_key(chunk_index)
         if cache_key in self.cache:

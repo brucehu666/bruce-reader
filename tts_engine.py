@@ -27,9 +27,9 @@ class TTSEngine:
             self.voice_names = []
             for v in all_voices:
                 desc = v.GetDescription()
-                if "Zira" not in desc:
-                    self.voices.append(v)
-                    self.voice_names.append(desc)
+                self.voices.append(v)
+                self.voice_names.append(desc)
+                print(f"检测到语音: {desc}")
         except Exception as e:
             print(f"TTS引擎初始化失败: {e}")
             self.engine = None

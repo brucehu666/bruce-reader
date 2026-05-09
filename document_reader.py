@@ -3,6 +3,12 @@ import chardet
 from pathlib import Path
 from typing import Optional, List, Tuple
 
+try:
+    from epub_processor import EPUBProcessor
+    EPUB_SUPPORTED = True
+except ImportError:
+    EPUB_SUPPORTED = False
+
 
 class DocumentReader:
     def __init__(self):
@@ -14,6 +20,8 @@ class DocumentReader:
         self.current_page: int = 0
         self.total_pages: int = 0
         self.cache: dict = {}
+        self.is_epub = False
+        self.epub_processor = EPUBProcessor() if EPUB_SUPPORTED else None
     
     def detect_encoding(self, file_path: Path) -> str:
         try:
@@ -41,6 +49,12 @@ class DocumentReader:
             return False
         
         self.file_path = path
+        self.is_epub = False
+        
+        # 检查是否为EPUB文件
+        if path.suffix.lower() == '.epub' and self.epub_processor:
+            return self._open_epub_file(path)
+        
         self.file_size = path.stat().st_size
         self.encoding = self.detect_encoding(path)
         
@@ -53,6 +67,30 @@ class DocumentReader:
             return True
         except Exception as e:
             print(f'打开文件失败: {e}')
+            return False
+    
+    def _open_epub_file(self, path: Path) -> bool:
+        """
+        处理EPUB文件
+        """
+        self.is_epub = True
+        
+        try:
+            content = self.epub_processor.extract_text_from_epub(str(path))
+            if not content:
+                print("无法从EPUB文件中提取内容")
+                return False
+            
+            self.total_content = content
+            self.file_size = len(content.encode('utf-8'))
+            self.encoding = 'utf-8'
+            
+            self.total_pages = max(1, (len(self.total_content) + self.page_size - 1) // self.page_size)
+            self.current_page = 0
+            return True
+                
+        except Exception as e:
+            print(f'读取EPUB文件失败: {e}')
             return False
     
     def get_page(self, page_num: int) -> str:
