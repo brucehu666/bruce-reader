@@ -204,7 +204,14 @@ class MainWindow(QMainWindow):
         self.voice_combo.setCurrentIndex(self.settings.get("tts_voice", 0))
         control_layout.addWidget(QLabel("语音:"))
         control_layout.addWidget(self.voice_combo)
-        
+
+        self.engine_combo = QComboBox()
+        self.engine_combo.addItems(["Windows SAPI", "Edge TTS (联网)"])
+        current_engine = self.settings.get("tts_engine", "sapi")
+        self.engine_combo.setCurrentIndex(0 if current_engine == "sapi" else 1)
+        control_layout.addWidget(QLabel("引擎:"))
+        control_layout.addWidget(self.engine_combo)
+
         control_layout.addStretch()
         
         self.status_label = QLabel("就绪")
@@ -246,6 +253,7 @@ class MainWindow(QMainWindow):
         self.rate_slider.valueChanged.connect(self._on_rate_changed)
         self.volume_slider.valueChanged.connect(self._on_volume_changed)
         self.voice_combo.currentIndexChanged.connect(self._on_voice_changed)
+        self.engine_combo.currentIndexChanged.connect(self._on_engine_changed)
         self.sentence_changed.connect(self._on_sentence_change_gui)
     
     def _setup_tts_callbacks(self):
@@ -600,8 +608,24 @@ class MainWindow(QMainWindow):
     def _on_voice_changed(self, index):
         if hasattr(self.tts_engine, 'set_voice'):
             self.tts_engine.set_voice(index)
-        self.settings.set("tts_voice", index)
-    
+            self.tts_engine.set_voice_combo_index(index)
+        self.settings["tts_voice"] = index
+
+    def _on_engine_changed(self, index):
+        engine_type = "sapi" if index == 0 else "edge"
+        self.settings["tts_engine"] = engine_type
+        self.settings_manager.save_settings(self.settings)
+
+        self.tts_engine.switch_engine(engine_type)
+
+        voices = self.tts_engine.get_voices()
+        self.voice_combo.blockSignals(True)
+        self.voice_combo.clear()
+        self.voice_combo.addItems(voices)
+        self.voice_combo.blockSignals(False)
+
+        self.status_label.setText(f"引擎: {'Windows SAPI' if index == 0 else 'Edge TTS'}")
+
     def closeEvent(self, event):
         self._stop_tts()
         super().closeEvent(event)
