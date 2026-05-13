@@ -1,0 +1,15 @@
+Windows Registry Editor Version 5.00
+
+[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Speech_OneCore\Voices\Tokens\ZH-CN-Kangkang]
+@="Microsoft Kangkang Mobile"
+"1009"="Microsoft Kangkang Mobile"
+"Language"=dword:00000804
+"VoiceType"=dword:00000001
+"Path"="C:\\Windows\\Speech_OneCore\\Engines\\TTS\\zh-CN\\M2052Kangkang.APM"
+
+[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Speech_OneCore\Voices\Tokens\ZH-CN-Yaoyao]
+@="Microsoft Yaoyao Mobile"
+"1009"="Microsoft Yaoyao Mobile"
+"Language"=dword:00000804
+"VoiceType"=dword:00000001
+"Path"="C:\\Windows\\Speech_OneCore\\Engines\\TTS\\zh-CN\\M2052Yaoyao.APM"

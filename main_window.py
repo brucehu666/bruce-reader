@@ -204,14 +204,7 @@ class MainWindow(QMainWindow):
         self.voice_combo.setCurrentIndex(self.settings.get("tts_voice", 0))
         control_layout.addWidget(QLabel("语音:"))
         control_layout.addWidget(self.voice_combo)
-
-        self.engine_combo = QComboBox()
-        self.engine_combo.addItems(["Windows SAPI", "Edge TTS (联网)"])
-        current_engine = self.settings.get("tts_engine", "sapi")
-        self.engine_combo.setCurrentIndex(0 if current_engine == "sapi" else 1)
-        control_layout.addWidget(QLabel("引擎:"))
-        control_layout.addWidget(self.engine_combo)
-
+        
         control_layout.addStretch()
         
         self.status_label = QLabel("就绪")
@@ -253,7 +246,6 @@ class MainWindow(QMainWindow):
         self.rate_slider.valueChanged.connect(self._on_rate_changed)
         self.volume_slider.valueChanged.connect(self._on_volume_changed)
         self.voice_combo.currentIndexChanged.connect(self._on_voice_changed)
-        self.engine_combo.currentIndexChanged.connect(self._on_engine_changed)
         self.sentence_changed.connect(self._on_sentence_change_gui)
     
     def _setup_tts_callbacks(self):
@@ -289,7 +281,7 @@ class MainWindow(QMainWindow):
     
     def _open_file(self):
         file_path, _ = QFileDialog.getOpenFileName(
-            self, "打开文件", "", "文本文件 (*.txt);;EPUB文件 (*.epub);;所有文件 (*.*)"
+            self, "打开文件", "", "文本和EPUB文件 (*.txt *.epub);;文本文件 (*.txt);;EPUB文件 (*.epub);;所有文件 (*.*)"
         )
         if file_path:
             self._load_file(file_path)
@@ -308,6 +300,11 @@ class MainWindow(QMainWindow):
             self._update_page_display()
             self.setWindowTitle(f"{file_path} - {APP_NAME}")
             self._update_bookmark_list()
+
+            bookmarks = self.bookmark_manager.get_bookmarks_for_file(file_path)
+            if bookmarks:
+                latest = max(bookmarks, key=lambda b: b.timestamp)
+                self._jump_to_position(latest.position)
     
     def _update_page_display(self):
         content = self.document_reader.get_current_page()
@@ -449,16 +446,22 @@ class MainWindow(QMainWindow):
     def _add_bookmark(self):
         if not self.document_reader.file_path:
             return
-        
+
         cursor = self.text_edit.textCursor()
         page_offset = cursor.position()
         absolute_pos = self.document_reader.current_page * self.document_reader.page_size + page_offset
-        
+
+        default_name = "书签"
+        sentences = self.document_reader.get_sentences(absolute_pos, 1)
+        if sentences:
+            first_sentence = sentences[0][1]
+            default_name = first_sentence[:5] if len(first_sentence) >= 5 else first_sentence
+
         dialog = QDialog(self)
         dialog.setWindowTitle("添加书签")
         layout = QVBoxLayout(dialog)
-        
-        name_edit = QLineEdit("书签")
+
+        name_edit = QLineEdit(default_name)
         layout.addWidget(QLabel("名称:"))
         layout.addWidget(name_edit)
         
@@ -608,24 +611,8 @@ class MainWindow(QMainWindow):
     def _on_voice_changed(self, index):
         if hasattr(self.tts_engine, 'set_voice'):
             self.tts_engine.set_voice(index)
-            self.tts_engine.set_voice_combo_index(index)
-        self.settings["tts_voice"] = index
-
-    def _on_engine_changed(self, index):
-        engine_type = "sapi" if index == 0 else "edge"
-        self.settings["tts_engine"] = engine_type
-        self.settings_manager.save_settings(self.settings)
-
-        self.tts_engine.switch_engine(engine_type)
-
-        voices = self.tts_engine.get_voices()
-        self.voice_combo.blockSignals(True)
-        self.voice_combo.clear()
-        self.voice_combo.addItems(voices)
-        self.voice_combo.blockSignals(False)
-
-        self.status_label.setText(f"引擎: {'Windows SAPI' if index == 0 else 'Edge TTS'}")
-
+        self.settings.set("tts_voice", index)
+    
     def closeEvent(self, event):
         self._stop_tts()
         super().closeEvent(event)
